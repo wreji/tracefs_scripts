@@ -2,10 +2,21 @@ import os
 import select
 import threading
 from typing import Callable, Optional
+import helpers.controls as controls 
 
+tracing_root_dir = "/sys/kernel/tracing/"
 stack_trace_path = "/sys/kernel/tracing/stack_trace"
 stack_trace_filter_path = "/sys/kernel/tracing/stack_trace_filter"
 event_trace_pid = "/sys/kernel/tracing/set_event_pid"
+
+def clear_trace_logs():
+    controls.write_control_string(tracing_root_dir + "trace", "")
+
+def enable_tracing():
+    controls.write_control_string(tracing_root_dir + "tracing_on", "1")
+
+def disable_tracing():
+    controls.write_control_string(tracing_root_dir + "tracing_on", "0")
 
 def find_tracing_dir() -> str:
     # Prefer tracefs, fallback to debugfs if older builds
@@ -92,22 +103,15 @@ def read_trace_pipe_polling(stop_event: threading.Event,
 
 
 def activate_stack_trace():
-    with open(stack_trace_path, "w", encoding="utf-8") as f:
-        f.write("1")
+    controls.write_control_string(stack_trace_path, "1")
 
 def deactivate_stack_trace():
-    with open(stack_trace_path, "w", encoding="utf-8") as f:
-        f.write("0")
+    controls.write_control_string(stack_trace_path, "0")
 
 def apply_stack_trace(filter=""):
-    with open(stack_trace_filter_path, "w", encoding="utf-8") as f:
-        f.write(filter)
+    controls.write_control_string(stack_trace_filter_path, filter)
 
-def set_event_pid(pid):
-    with open(stack_trace_filter_path, "a", encoding="utf-8") as f:
-        f.write(str(pid))
-
-def clear_event_pid():
-    with open(stack_trace_filter_path, "a", encoding="utf-8") as f:
-        f.write("")
-    
+def assert_clean_new_trace():
+    disable_tracing()
+    clear_trace_logs()
+    enable_tracing()
